@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAT类型检测工具 | 网络配置分析</title>
+    <meta name="description" content="支持中英文的NAT类型检测工具，准确分析您的网络配置">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            light: "#4f46e5",
+                            DEFAULT: "#4338ca",
+                            dark: "#3730a3"
+                        },
+                        secondary: {
+                            light: "#10b981",
+                            DEFAULT: "#059669",
+                            dark: "#047857"
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans SC', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #4f46e5 0%, #10b981 100%);
+        }
+        
+        .result-card {
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .lang-switcher {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .lang-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: white;
+            min-width: 120px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 4px;
+        }
+        
+        .lang-switcher:hover .lang-dropdown {
+            display: block;
+        }
+        
+        .lang-option {
+            color: black;
+            padding: 8px 16px;
+            text-decoration: none;
+            display: block;
+            cursor: pointer;
+        }
+        
+        .lang-option:hover {
+            background-color: #f1f1f1;
+        }
+    </style>
+</head>
+<body class="font-sans bg-gray-50 min-h-screen">
+    <header class="gradient-bg text-white">
+        <div class="container mx-auto px-4 py-8">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-network-wired text-2xl"></i>
+                    <h1 class="text-2xl font-bold" data-i18n="appTitle">NAT检测专家</h1>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <nav class="hidden md:block">
+                        <ul class="flex space-x-6">
+                            <li><a href="#" class="hover:underline" data-i18n="navHome">首页</a></li>
+                            <li><a href="#" class="hover:underline" data-i18n="navAbout">关于</a></li>
+                            <li><a href="#" class="hover:underline" data-i18n="navFAQ">常见问题</a></li>
+                            <li><a href="#" class="hover:underline" data-i18n="navContact">联系我们</a></li>
+                        </ul>
+                    </nav>
+                    <div class="lang-switcher">
+                        <button class="flex items-center space-x-1 bg-white bg-opacity-20 px-3 py-1 rounded-full">
+                            <span id="currentLang">中文</span>
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <div class="lang-dropdown">
+                            <div class="lang-option" onclick="changeLanguage('zh')">中文</div>
+                            <div class="lang-option" onclick="changeLanguage('en')">English</div>
+                        </div>
+                    </div>
+                    <button class="md:hidden text-xl">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mt-16 mb-20 text-center">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4" data-i18n="heroTitle">精准检测您的NAT类型</h2>
+                <p class="text-xl md:text-2xl opacity-90 max-w-3xl mx-auto" data-i18n="heroSubtitle">
+                    获取您的公网IP地址和详细的网络配置分析，优化您的在线体验
+                </p>
+                <button id="startTestBtn" class="mt-8 bg-white text-primary-dark font-semibold px-8 py-3 rounded-full hover:bg-gray-100 transition duration-300 shadow-lg" data-i18n="startTest">
+                    开始检测
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-12 -mt-10">
+        <div class="bg-white rounded-xl shadow-xl p-6 md:p-8 max-w-4xl mx-auto">
+            <div id="testContainer" class="text-center">
+                <div class="mb-8">
+                    <h3 class="text-2xl font-semibold mb-4" data-i18n="testTitle">高级NAT类型检测</h3>
+                    <p class="text-gray-600 mb-6" data-i18n="testDescription">
+                        本工具将执行多项测试来准确判断您的NAT类型和公网IP地址，检测过程可能需要10-30秒。
+                    </p>
+                    <div class="w-full bg-gray-200 rounded-full h-4 mb-6">
+                        <div id="progressBar" class="bg-primary h-4 rounded-full" style="width: 0%"></div>
+                    </div>
+                    <p id="statusText" class="text-gray-500 italic" data-i18n="readyStatus">准备开始检测...</p>
+                </div>
+                
+                <div id="resultContainer" class="hidden">
+                    <h3 class="text-2xl font-semibold mb-6" data-i18n="resultTitle">网络分析结果</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="result-card bg-white border border-gray-200 rounded-lg p-6">
+                            <div class="text-primary text-4xl mb-4">
+                                <i class="fas fa-network-wired"></i>
+                            </div>
+                            <h4 class="font-bold text-lg mb-2" data-i18n="natTypeLabel">NAT类型</h4>
+                            <p id="natType" class="text-3xl font-bold text-primary">-</p>
+                        </div>
+                        
+                        <div class="result-card bg-white border border-gray-200 rounded-lg p-6">
+                            <div class="text-blue-500 text-4xl mb-4">
+                                <i class="fas fa-globe"></i>
+                            </div>
+                            <h4 class="font-bold text-lg mb-2" data-i18n="publicIpLabel">公网IP</h4>
+                            <p id="publicIp" class="text-xl font-mono">检测中...</p>
+                        </div>
+                        
+                        <div class="result-card bg-white border border-gray-200 rounded-lg p-6">
+                            <div class="text-green-500 text-4xl mb-4">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h4 class="font-bold text-lg mb-2" data-i18n="firewallLabel">防火墙状态</h4>
+                            <p id="firewallStatus" class="text-xl">-</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-lg p-6 text-left">
+                        <h4 class="font-bold text-lg mb-3" data-i18n="analysisTitle">详细分析</h4>
+                        <p id="natDescription" class="text-gray-700 mb-4" data-i18n="defaultAnalysis">
+                            正在执行全面的网络测试...
+                        </p>
+                        <div id="natRecommendations" class="space-y-2">
+                            <!-- Recommendations will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-16 max-w-4xl mx-auto">
+            <h3 class="text-2xl font-semibold mb-6 text-center" data-i18n="howItWorksTitle">NAT检测原理</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-primary text-3xl mb-3">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <h4 class="font-bold text-lg mb-2" data-i18n="stunTitle">STUN协议</h4>
+                    <p class="text-gray-600" data-i18n="stunDescription">
+                        使用STUN协议确定您的公网IP和NAT行为特征。
+                    </p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-blue-500 text-3xl mb-3">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h4 class="font-bold text-lg mb-2" data-i18n="portTestTitle">端口测试</h4>
+                    <p class="text-gray-600" data-i18n="portTestDescription">
+                        测试多个端口状态，检查是否被防火墙阻止或限制。
+                    </p>
+                </div>
+                
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-green-500 text-3xl mb-3">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <h4 class="font-bold text-lg mb-2" data-i18n="connectivityTitle">连接测试</h4>
+                    <p class="text-gray-600" data-i18n="connectivityDescription">
+                        使用不同NAT穿透技术测试连接性，确定您的具体NAT类型。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <h4 class="text-lg font-bold mb-4" data-i18n="footerTitle">NAT检测专家</h4>
+                    <p class="text-gray-400" data-i18n="footerDescription">
+                        支持中英文的高级网络分析工具，提供准确的NAT类型检测。
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-bold mb-4" data-i18n="resourcesTitle">资源</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition" data-i18n="natExplained">NAT原理</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition" data-i18n="portForwarding">端口转发</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition" data-i18n="networkOptimization">网络优化</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-bold mb-4" data-i18n="supportTitle">支持</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white transition" data-i18n="documentation">文档</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition" data-i18n="community">社区</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white transition" data-i18n="contactUs">联系我们</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-lg font-bold mb-4" data-i18n="connectTitle">关注我们</h4>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition text-xl"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white transition text-xl"><i class="fab fa-github"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-white transition text-xl"><i class="fab fa-discord"></i></a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+                <p data-i18n="copyright">&copy; 2025 NAT检测专家 版权所有</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Language translations
+        const translations = {
+            "zh": {
+                "appTitle": "NAT检测专家",
+                "navHome": "首页",
+                "navAbout": "关于",
+                "navFAQ": "常见问题",
+                "navContact": "联系我们",
+                "heroTitle": "精准检测您的NAT类型",
+                "heroSubtitle": "获取您的公网IP地址和详细的网络配置分析，优化您的在线体验",
+                "startTest": "开始检测",
+                "testTitle": "高级NAT类型检测",
+                "testDescription": "本工具将执行多项测试来准确判断您的NAT类型和公网IP地址，检测过程可能需要10-30秒。",
+                "readyStatus": "准备开始检测...",
+                "resultTitle": "网络分析结果",
+                "natTypeLabel": "NAT类型",
+                "publicIpLabel": "公网IP",
+                "firewallLabel": "防火墙状态",
+                "analysisTitle": "详细分析",
+                "defaultAnalysis": "正在执行全面的网络测试...",
+                "howItWorksTitle": "NAT检测原理",
+                "stunTitle": "STUN协议",
+                "stunDescription": "使用STUN协议确定您的公网IP和NAT行为特征。",
+                "portTestTitle": "端口测试",
+                "portTestDescription": "测试多个端口状态，检查是否被防火墙阻止或限制。",
+                "connectivityTitle": "连接测试",
+                "connectivityDescription": "使用不同NAT穿透技术测试连接性，确定您的具体NAT类型。",
+                "footerTitle": "NAT检测专家",
+                "footerDescription": "支持中英文的高级网络分析工具，提供准确的NAT类型检测。",
+                "resourcesTitle": "资源",
+                "natExplained": "NAT原理",
+                "portForwarding": "端口转发",
+                "networkOptimization": "网络优化",
+                "supportTitle": "支持",
+                "documentation": "文档",
+                "community": "社区",
+                "contactUs": "联系我们",
+                "connectTitle": "关注我们",
+                "copyright": "&copy; 2025 NAT检测专家 版权所有",
+                "statusCheckingIP": "正在检测公网IP地址...",
+                "statusConnectingSTUN": "正在连接STUN服务器...",
+                "statusTestingPorts": "正在测试端口可用性...",
+                "statusAnalyzing": "正在分析NAT行为...",
+                "statusComplete": "检测完成!",
+                "natTypeOpen": "开放 (类型1)",
+                "natTypeModerate": "中等 (类型2)",
+                "natTypeStrict": "严格 (类型3)",
+                "natTypeSymmetric": "对称型",
+                "natDescOpen": "您的设备拥有公网IP地址，没有NAT限制。",
+                "natDescModerate": "您的路由器执行NAT但允许大多数从内部发起的传入连接。",
+                "natDescStrict": "您的网络有严格的NAT规则，可能会限制游戏和P2P应用的连接。",
+                "natDescSymmetric": "您的NAT使用端口随机化，可能导致某些应用程序连接问题。",
+                "recOptimal": "您的网络配置已优化",
+                "recUPnP": "在路由器上启用UPnP以获得更好的连接性",
+                "recPortForward": "为特定应用程序设置端口转发",
+                "recDMZ": "考虑将您的设备暂时置于DMZ模式",
+                "recContactISP": "如果问题持续，请联系您的ISP"
+            },
+            "en": {
+                "appTitle": "NAT Detector Pro",
+                "navHome": "Home",
+                "navAbout": "About",
+                "navFAQ": "Frequently Asked Questions",
+                "navContact": "Contact",
+                "heroTitle": "Accurate NAT Type Detection",
+                "heroSubtitle": "Get precise information about your network configuration and public IP address",
+                "startTest": "Start Test",
+                "testTitle": "Advanced NAT Detection",
+                "testDescription": "This tool performs multiple tests to accurately determine your NAT type and public IP address.",
+                "readyStatus": "Ready to begin test...",
+                "resultTitle": "Network Analysis Results",
+                "natTypeLabel": "NAT Type",
+                "publicIpLabel": "Public IP",
+                "firewallLabel": "Firewall Status",
+                "analysisTitle": "Detailed Analysis",
+                "defaultAnalysis": "Running comprehensive network tests...",
+                "howItWorksTitle": "How NAT Detection Works",
+                "stunTitle": "STUN Protocol",
+                "stunDescription": "Uses STUN to determine your public IP and NAT behavior.",
+                "portTestTitle": "Port Testing",
+                "portTestDescription": "Tests multiple ports to check if they're blocked by your firewall.",
+                "connectivityTitle": "Connectivity",
+                "connectivityDescription": "Checks connectivity with different NAT traversal techniques.",
+                "footerTitle": "NAT Detector Pro",
+                "footerDescription": "Advanced network analysis tool with accurate NAT type detection.",
+                "resourcesTitle": "Resources",
+                "natExplained": "NAT Explained",
+                "portForwarding": "Port Forwarding",
+                "networkOptimization": "Network Optimization",
+                "supportTitle": "Support",
+                "documentation": "Documentation",
+                "community": "Community",
+                "contactUs": "Contact Us",
+                "connectTitle": "Connect",
+                "copyright": "&copy; 2025 NAT Detector Pro. All rights reserved.",
+                "statusCheckingIP": "Checking public IP address...",
+                "statusConnectingSTUN": "Connecting to STUN server...",
+                "statusTestingPorts": "Testing port availability...",
+                "statusAnalyzing": "Analyzing NAT behavior...",
+                "statusComplete": "Test completed!",
+                "natTypeOpen": "Open (Type 1)",
+                "natTypeModerate": "Moderate (Type 2)",
+                "natTypeStrict": "Strict (Type 3)",
+                "natTypeSymmetric": "Symmetric",
+                "natDescOpen": "Your device has a public IP address with no NAT restrictions.",
+                "natDescModerate": "Your router performs NAT but allows most incoming connections when initiated from inside.",
+                "natDescStrict": "Your network has strict NAT rules that may limit connectivity in games and P2P applications.",
+                "natDescSymmetric": "Your NAT uses port randomization which can cause connectivity issues with some applications.",
+                "recOptimal": "Your network is optimally configured",
+                "recUPnP": "Enable UPnP on your router for better connectivity",
+                "recPortForward": "Set up port forwarding for your applications",
+                "recDMZ": "Consider placing your device in DMZ mode temporarily",
+                "recContactISP": "Contact your ISP if issues persist"
+            }
+        };
+
+        // Current language
+        let currentLanguage = 'zh';
+
+        // Change language function
+        function changeLanguage(lang) {
+            currentLanguage = lang;
+            document.getElementById('currentLang').textContent = lang === 'zh' ? '中文' : 'English';
+            translatePage();
+        }
+
+        // Translate the page
+        function translatePage() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (translations[currentLanguage][key]) {
+                    if (element.tagName === 'INPUT' && element.type === 'placeholder') {
+                        element.placeholder = translations[currentLanguage][key];
+                    } else {
+                        element.innerHTML = translations[currentLanguage][key];
+                    }
+                }
+            });
+        }
+
+        // Real IP detection using a public API
+        async function getPublicIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip;
+            } catch (error) {
+                console.error("Error fetching IP:", error);
+                return currentLanguage === 'zh' ? "IP检测失败" : "Error detecting IP";
+            }
+        }
+
+        // NAT type detection with multiple STUN servers
+        async function detectNATType() {
+            // List of STUN servers to test with
+            const stunServers = [
+                'stun:stun.l.google.com:19302',
+                'stun:stun1.l.google.com:19302',
+                'stun:stun2.l.google.com:19302',
+                'stun:stun3.l.google.com:19302',
+                'stun:stun4.l.google.com:19302',
+                'stun:stun.ekiga.net',
+                'stun:stun.voipstunt.com'
+            ];
+        
+            // Create peer connection configuration
+            const configuration = {
+                iceServers: stunServers.map(server => ({ urls: server })),
+                iceTransportPolicy: 'relay',
+                iceCandidatePoolSize: 0
+            };
+        
+            // Create RTCPeerConnection for STUN testing
+            const pc = new RTCPeerConnection(configuration);
+            let natType = currentLanguage === 'zh' ? "未知类型" : "Unknown Type";
+            let firewallStatus = currentLanguage === 'zh' ? "未知" : "Unknown";
+            let description = currentLanguage === 'zh' ? "无法确定NAT类型" : "Could not determine NAT type";
+            let recommendations = [];
+        
+            try {
+                // Create dummy data channel
+                pc.createDataChannel('');
+        
+                // Create offer and set local description
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+        
+                // Wait for ICE gathering to complete
+                await new Promise(resolve => {
+                    pc.onicecandidate = e => {
+                        if (!e.candidate) {
+                            resolve();
+                        }
+                    };
+                });
+        
+                // Analyze ICE candidates to determine NAT type
+                const iceCandidates = pc.localDescription.sdp;
+        
+                // Simple NAT type detection logic
+                if (iceCandidates.includes('srflx')) {
+                    if (iceCandidates.includes('host')) {
+                        natType = currentLanguage === 'zh' ? "中等 (类型2)" : "Moderate (Type 2)";
+                        description = currentLanguage === 'zh' ? "您的路由器执行NAT但允许大多数从内部发起的传入连接。" : "Your router performs NAT but allows most incoming connections when initiated from inside.";
+                        firewallStatus = currentLanguage === 'zh' ? "中等限制" : "Moderate restrictions";
+                        recommendations = [
+                            currentLanguage === 'zh' ? "在路由器上启用UPnP以获得更好的连接性" : "Enable UPnP on your router for better connectivity"
+                        ];
+                    }
+                } else if (iceCandidates.includes('host')) {
+                    natType = currentLanguage === 'zh' ? "开放 (类型1)" : "Open (Type 1)";
+                    description = currentLanguage === 'zh' ? "您的设备拥有公网IP地址，没有NAT限制。" : "Your device has a public IP address with no NAT restrictions.";
+                    firewallStatus = currentLanguage === 'zh' ? "限制很少" : "Minimal restrictions";
+                    recommendations = [
+                        currentLanguage === 'zh' ? "您的网络配置已优化" : "Your network is optimally configured"
+                    ];
+                } else {
+                    natType = currentLanguage === 'zh' ? "严格 (类型3)" : "Strict (Type 3)";
+                    description = currentLanguage === 'zh' ? "您的网络有严格的NAT规则，可能会限制游戏和P2P应用的连接。" : "Your network has strict NAT rules that may limit connectivity in games and P2P applications.";
+                    firewallStatus = currentLanguage === 'zh' ? "严格限制" : "Strict restrictions";
+                    recommendations = [
+                        currentLanguage === 'zh' ? "在路由器设置中启用UPnP" : "Enable UPnP in your router settings",
+                        currentLanguage === 'zh' ? "为您的应用程序设置端口转发" : "Set up port forwarding for your applications"
+                    ];
+                }
+            } catch (error) {
+                console.error("STUN testing error:", error);
+            } finally {
+                pc.close();
+            }
+        
+            return {
+                type: natType,
+                desc: description,
+                firewall: firewallStatus,
+                recs: recommendations
+            };
+        }
+
+        // Status messages with translations
+        function getStatusMessage(progress, lang) {
+            if (progress < 20) {
+                return lang === 'zh' ? "正在初始化测试..." : "Initializing test...";
+            } else if (progress < 40) {
+                return lang === 'zh' ? "正在检测公网IP地址..." : "Checking public IP address...";
+            } else if (progress < 60) {
+                return lang === 'zh' ? "正在连接STUN服务器..." : "Connecting to STUN server...";
+            } else if (progress < 80) {
+                return lang === 'zh' ? "正在测试端口可用性..." : "Testing port availability...";
+            } else if (progress < 100) {
+                return lang === 'zh' ? "正在分析NAT行为..." : "Analyzing NAT behavior...";
+            } else {
+                return lang === 'zh' ? "检测完成!" : "Test completed!";
+            }
+        }
+
+        // Main test function
+        document.getElementById('startTestBtn').addEventListener('click', async function() {
+            const testContainer = document.getElementById('testContainer');
+            const resultContainer = document.getElementById('resultContainer');
+            const progressBar = document.getElementById('progressBar');
+            const statusText = document.getElementById('statusText');
+            
+            // Reset UI
+            resultContainer.classList.add('hidden');
+            progressBar.style.width = '0%';
+            statusText.textContent = currentLanguage === 'zh' ? "准备开始检测..." : "Ready to begin test...";
+            
+            // Get public IP first
+            statusText.textContent = currentLanguage === 'zh' ? "正在检测公网IP地址..." : "Checking public IP address...";
+            progressBar.style.width = '20%';
+            const publicIP = await getPublicIP();
+            document.getElementById('publicIp').textContent = publicIP;
+            
+            // Start NAT detection
+            statusText.textContent = currentLanguage === 'zh' ? "正在连接STUN服务器..." : "Connecting to STUN server...";
+            progressBar.style.width = '40%';
+            
+            // Simulate port testing
+            statusText.textContent = currentLanguage === 'zh' ? "正在测试端口可用性..." : "Testing port availability...";
+            progressBar.style.width = '60%';
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Get NAT type
+            statusText.textContent = currentLanguage === 'zh' ? "正在分析NAT行为..." : "Analyzing NAT behavior...";
+            progressBar.style.width = '80%';
+            const natResult = await detectNATType();
+            
+            // Complete test
+            progressBar.style.width = '100%';
+            statusText.textContent = currentLanguage === 'zh' ? "正在生成结果..." : "Finalizing results...";
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Display results
+            document.getElementById('natType').textContent = natResult.type;
+            document.getElementById('natDescription').textContent = natResult.desc;
+            document.getElementById('firewallStatus').textContent = natResult.firewall;
+            
+            // Add appropriate recommendations
+            const recsContainer = document.getElementById('natRecommendations');
+            recsContainer.innerHTML = '';
+            
+            natResult.recs.forEach(rec => {
+                const recElement = document.createElement('div');
+                recElement.className = 'flex items-start';
+                recElement.innerHTML = `
+                    <i class="fas fa-check-circle text-green-500 mt-1 mr-2"></i>
+                    <span>${rec}</span>
+                `;
+                recsContainer.appendChild(recElement);
+            });
+            
+            // Show results
+            statusText.textContent = currentLanguage === 'zh' ? "检测完成!" : "Test completed!";
+            resultContainer.classList.remove('hidden');
+            resultContainer.scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // Initialize the page with default language
+        document.addEventListener('DOMContentLoaded', function() {
+            translatePage();
+        });
+    </script>
+</body>
+</html>
